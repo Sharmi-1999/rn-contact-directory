@@ -1,98 +1,168 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator, Linking } from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useAppDispatch, useAppSelector } from "../store/store";
+import { syncContacts, loadPersistedData, toggleFavoriteThunk } from "../store/contactsSlice";
+import { ContactList } from "../features/contacts/components/ContactList";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function ContactsDirectoryScreen() {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { contacts, favorites, nicknames, permissionStatus, isLoading } = useAppSelector(
+    (state) => state.contacts
+  );
+  const [searchQuery, setSearchQuery] = useState("");
 
-export default function HomeScreen() {
+  useEffect(() => {
+    dispatch(loadPersistedData());
+    dispatch(syncContacts());
+  }, [dispatch]);
+
+  const handleToggleFavorite = (id: string) => {
+    dispatch(toggleFavoriteThunk(id));
+  };
+
+  const handleSelectContact = (id: string) => {
+    router.push({
+      pathname: "/details/[id]",
+      params: { id },
+    });
+  };
+
+  const handleRetrySync = () => {
+    dispatch(syncContacts());
+  };
+
+  if (isLoading && contacts.length === 0) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Synchronizing contacts...</Text>
+      </View>
+    );
+  }
+
+  if (permissionStatus === "denied" || permissionStatus === "blocked") {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="lock-closed-outline" size={64} color="#888888" style={styles.errorIcon} />
+        <Text style={styles.errorTitle}>Permission Required</Text>
+        <Text style={styles.errorMessage}>
+          This app needs access to your contacts to display them in the directory. Please enable contacts access in your system settings.
+        </Text>
+        <TouchableOpacity style={styles.settingsButton} onPress={() => Linking.openSettings()}>
+          <Text style={styles.settingsButtonText}>Open Settings</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      {permissionStatus === "limited" && (
+        <View style={styles.permissionBanner}>
+          <Text style={styles.bannerText}>
+            Limited Access: Only some contacts are available. Grant Full Access in Settings to see all contacts.
+          </Text>
+          <TouchableOpacity
+            style={styles.bannerButton}
+            onPress={() => Linking.openSettings()}
+          >
+            <Text style={styles.bannerButtonText}>Settings</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      <ContactList
+        contacts={contacts}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        favorites={favorites}
+        nicknames={nicknames}
+        onToggleFavorite={handleToggleFavorite}
+        onSelectContact={handleSelectContact}
+        isRefreshing={isLoading}
+        onRefresh={handleRetrySync}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#F9F9F9",
   },
-  stepContainer: {
-    gap: 8,
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F9F9F9",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666666",
+  },
+  permissionBanner: {
+    backgroundColor: "#FFF9E6",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FFE0B2",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  bannerText: {
+    fontSize: 13,
+    color: "#B78103",
+    flex: 1,
+    marginRight: 8,
+  },
+  bannerButton: {
+    backgroundColor: "#FFA000",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+  },
+  bannerButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  errorIcon: {
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333333",
     marginBottom: 8,
+    textAlign: "center",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  errorMessage: {
+    fontSize: 14,
+    color: "#666666",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 32,
+  },
+  settingsButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  settingsButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
