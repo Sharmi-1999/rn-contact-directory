@@ -82,6 +82,7 @@ Selected `@react-native-async-storage/async-storage` as the persistence layer:
 - **Offline Sync Reconciliation:** Implement smart reconciliation logic to merge new device contact changes with existing local nicknames and favorites if a contact is updated on the device.
 - **Unit & Integration Testing:** Implement tests for Redux reducers and async thunk payloads using Jest and React Native Testing Library.
 - **Shared Transitions:** Add smooth Shared Element Transitions between the list screen avatars and the details page avatar.
+- **Good To Have:** Add the hexcode colors in a single file, as tokens. So that it can be standardized. In that way, Dark mode will be simpler to implement.
 
 ---
 
